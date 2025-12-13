@@ -3,25 +3,91 @@ import torch
 from transformers import LlamaForCausalLM, GPT2TokenizerFast
 import os
 
+# Optional import for quantization (GPU only)
+try:
+    from transformers import BitsAndBytesConfig
+    HAS_BITSANDBYTES = True
+except ImportError:
+    HAS_BITSANDBYTES = False
+
 # Global variables for model and tokenizer
 model = None
 tokenizer = None
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+# Configuration: 
+# Set HF_MODEL_ID to load from your HuggingFace Hub repository instead of local checkpoint
+HF_MODEL_ID = os.getenv("HF_MODEL_ID", None)  # e.g., "your-username/smollm2-135m-coriolanus"
+# Note: Quantization (8-bit/4-bit) requires GPU and is disabled for CPU-only environments
+
 def load_model():
-    """Load the model and tokenizer"""
+    """Load the model and tokenizer with optional quantization"""
     global model, tokenizer
     
     if model is None:
         print("Loading model...")
-        # Try to load from checkpoint, otherwise load from pretrained
-        if os.path.exists("checkpoint_5000"):
-            model = LlamaForCausalLM.from_pretrained("checkpoint_5000")
+        
+        # Determine model source
+        model_path = None
+        if HF_MODEL_ID:
+            # Load from HuggingFace Hub repository
+            print(f"Loading from HuggingFace Hub: {HF_MODEL_ID}")
+            model_path = HF_MODEL_ID
+        elif os.path.exists("checkpoint_5000"):
+            # Load from local checkpoint
+            print("Loading from local checkpoint: checkpoint_5000")
+            model_path = "checkpoint_5000"
         else:
             # Fallback: load pretrained model
-            model = LlamaForCausalLM.from_pretrained("HuggingFaceTB/SmolLM2-135M")
+            print("Loading pretrained model: HuggingFaceTB/SmolLM2-135M")
+            model_path = "HuggingFaceTB/SmolLM2-135M"
         
-        model.to(device)
+        # Load model (quantization only available on GPU)
+        if device == "cuda" and HAS_BITSANDBYTES:
+            # GPU: Can use quantization if requested
+            use_quantization = os.getenv("USE_QUANTIZATION", "").lower()
+            if use_quantization == "4bit":
+                try:
+                    print("Using 4-bit quantization (QLoRA)")
+                    quantization_config = BitsAndBytesConfig(
+                        load_in_4bit=True,
+                        bnb_4bit_compute_dtype=torch.float16,
+                        bnb_4bit_use_double_quant=True,
+                        bnb_4bit_quant_type="nf4"
+                    )
+                    model = LlamaForCausalLM.from_pretrained(
+                        model_path,
+                        quantization_config=quantization_config,
+                        device_map="auto"
+                    )
+                except Exception as e:
+                    print(f"Quantization failed, loading normally: {e}")
+                    model = LlamaForCausalLM.from_pretrained(model_path)
+                    model.to(device)
+            elif use_quantization in ["8bit", "true", "1"]:
+                try:
+                    print("Using 8-bit quantization")
+                    quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+                    model = LlamaForCausalLM.from_pretrained(
+                        model_path,
+                        quantization_config=quantization_config,
+                        device_map="auto"
+                    )
+                except Exception as e:
+                    print(f"Quantization failed, loading normally: {e}")
+                    model = LlamaForCausalLM.from_pretrained(model_path)
+                    model.to(device)
+            else:
+                # GPU without quantization
+                model = LlamaForCausalLM.from_pretrained(model_path)
+                model.to(device)
+        else:
+            # CPU: Load without quantization (bitsandbytes doesn't work on CPU)
+            print(f"Loading on {device.upper()} (quantization not available)")
+            # Use float32 for CPU (more compatible, though slower)
+            model = LlamaForCausalLM.from_pretrained(model_path, torch_dtype=torch.float32)
+            model.to(device)
+        
         model.eval()
         
         tokenizer = GPT2TokenizerFast.from_pretrained("HuggingFaceTB/SmolLM2-135M")

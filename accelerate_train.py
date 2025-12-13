@@ -227,7 +227,19 @@ def main():
     # Save model + optimizer
     # -----------------------------
     save_dir = "checkpoint_5000"
-    accelerator.unwrap_model(model).save_pretrained(save_dir)
+    model_to_save = accelerator.unwrap_model(model)
+    
+    # Convert to FP16 before saving to reduce checkpoint size (~50% reduction)
+    # This makes the checkpoint ~257MB instead of ~513MB
+    if device.type == "cuda":
+        # Save in FP16 for smaller size (works on GPU)
+        model_to_save = model_to_save.half()
+        accelerator.print("Saving model in FP16 format (reduces size by ~50%)")
+    else:
+        # CPU: keep FP32 (FP16 not well supported on CPU)
+        accelerator.print("Saving model in FP32 format (CPU)")
+    
+    model_to_save.save_pretrained(save_dir)
 
     if accelerator.is_main_process:
         torch.save(

@@ -1,16 +1,15 @@
 ---
-title: SmolLM2-135M
-emoji: 🚀
+title: SmolLM2-135M Coriolanus
+emoji: 🎭
 colorFrom: blue
 colorTo: purple
 sdk: gradio
 sdk_version: 4.0.0
 app_file: app.py
 pinned: false
-license: apache-2.0
 ---
 
-# SmolLM2-135M Text Generation Demo
+# SmolLM2-135M Coriolanus Text Generation
 
 A lightweight language model (135M parameters) fine-tuned exclusively on Shakespeare's **Coriolanus**. The model writes in the style of a dramatic play, complete with character names, stage directions, and Shakespearean dialogue.
 

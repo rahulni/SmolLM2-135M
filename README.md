@@ -1,6 +1,6 @@
 # SmolLM2-135M Training Project
 
-A complete training pipeline for SmolLM2-135M, a lightweight language model based on the LLaMA architecture with 135 million parameters. This model has been fine-tuned exclusively on Shakespeare's **Coriolanus**, and therefore writes in the style of a dramatic play. This project includes optimized training scripts with multiple speedup techniques and a ready-to-deploy Gradio demo.
+A complete training pipeline for SmolLM2-135M, a lightweight language model based on the LLaMA architecture with 135 million parameters. This model has been fine-tuned exclusively on ShakespeCare's **Coriolanus**, and therefore writes in the style of a dramatic play. This project includes optimized training scripts with multiple speedup techniques and a ready-to-deploy Gradio demo.
 
 ## 📊 Model Information
 
@@ -74,6 +74,9 @@ This project implements several performance optimizations:
 ├── accelerate_resume.py                   # Resume training from checkpoint
 ├── train_from_scratch.py                  # Simple training script (no Accelerate)
 ├── smollm2_135m_reverse_engineer.py       # Reverse engineer model architecture from HF
+├── upload_to_hub.py                        # Upload checkpoint to HuggingFace Hub
+├── convert_to_fp16.py                      # Convert FP32 checkpoint to FP16 (reduce size by 50%)
+├── prepare_for_hf_space.py                 # Prepare minimal checkpoint (remove optimizer)
 ├── config.py                               # Model configuration class
 ├── generate_config.py                      # Config generation utility
 ├── app.py                                  # Gradio demo for Hugging Face Spaces
@@ -104,7 +107,12 @@ pip install torch transformers accelerate gradio pyyaml
 ```bash
 # Flash Attention (if available)
 pip install flash-attn --no-build-isolation
+
+# Quantization support (for smaller model size in HF Spaces)
+pip install bitsandbytes
 ```
+
+**Note:** `bitsandbytes` is required for 8-bit/4-bit quantization in the Gradio app. This is useful for Hugging Face Spaces where model size is limited.
 
 ## 📖 Usage
 
@@ -213,15 +221,82 @@ Then open your browser to `http://localhost:7860`
 
 #### Hugging Face Spaces
 
-1. Create a new Space on Hugging Face
-2. Upload `app.py` and your checkpoint
-3. Add `requirements.txt`:
-   ```
-   torch
-   transformers
-   gradio
-   ```
+**Option 1: Use Pretrained Model (Recommended for CPU-only Spaces)**
+
+Since checkpoint files are large (~270MB), the easiest approach is to use the pretrained model:
+
+1. Create a new Space on Hugging Face (CPU or GPU)
+2. Upload `app.py` and `requirements.txt` (do NOT upload checkpoint files)
+3. The app will automatically load from `HuggingFaceTB/SmolLM2-135M` if no checkpoint is found
 4. The Space will automatically deploy
+
+**CPU Performance Note:**
+- The app automatically detects CPU and loads models in float32
+- Generation will be slower on CPU (~5-10 seconds per generation)
+- For faster inference, consider using a GPU-enabled Space
+
+**Option 2: Upload Checkpoint to HuggingFace Hub (Recommended)**
+
+If you want to use your fine-tuned checkpoint, upload it to HuggingFace Hub as a model repository (not in the Space):
+
+1. Install dependencies and login:
+   ```bash
+   pip install huggingface_hub
+   huggingface-cli login
+   ```
+
+2. **Convert to FP16 first** (if your model is FP32):
+   ```bash
+   python convert_to_fp16.py --checkpoint-dir checkpoint_5000 --output-dir checkpoint_fp16
+   ```
+
+3. Upload checkpoint (optimizer state excluded by default):
+   ```bash
+   python upload_to_hub.py --repo-id your-username/smollm2-135m-coriolanus --checkpoint-dir checkpoint_fp16
+   ```
+   
+   **Required files uploaded:**
+   - ✅ `config.json` (~1KB) - Model configuration
+   - ✅ `model.safetensors` (~257MB FP16 or ~513MB FP32) - Model weights
+   - ✅ `generation_config.json` (~1KB) - Generation settings
+   - ❌ **Excludes `optim.pt`** (~200MB) - Not needed for inference
+   - ❌ **Tokenizer files** - Not needed (app uses `HuggingFaceTB/SmolLM2-135M` tokenizer)
+
+3. Set environment variable in HF Space settings:
+   - `HF_MODEL_ID`: `your-username/smollm2-135m-coriolanus`
+
+4. Upload only `app.py` and `requirements.txt` to the Space (no checkpoint files!)
+
+**Size Reduction:**
+- Original checkpoint: ~713MB (FP32 model 513MB + optimizer 200MB)
+- After removing optimizer: ~513MB (FP32 model only)
+- After converting to FP16: ~257MB (50% reduction)
+- Space files: <1MB (just app.py and requirements.txt)
+
+**💡 Important:** If your model is saved in FP32 (~513MB), convert it to FP16 first:
+```bash
+python convert_to_fp16.py --checkpoint-dir checkpoint_5000 --output-dir checkpoint_fp16
+python upload_to_hub.py --repo-id your-username/smollm2-135m-coriolanus --checkpoint-dir checkpoint_fp16
+```
+
+**Option 3: Use Quantization (GPU Only - Smaller Model Size)**
+
+To reduce model size for HF Spaces with GPU:
+
+1. Set environment variable in HF Space settings:
+   - `USE_QUANTIZATION`: `8bit` (for 8-bit) or `4bit` (for 4-bit quantization)
+
+2. This reduces model size:
+   - 8-bit: ~135MB (50% reduction)
+   - 4-bit: ~68MB (75% reduction)
+
+3. Upload `app.py` and `requirements.txt` to the Space
+4. Add `bitsandbytes>=0.41.0` to `requirements.txt` (for GPU quantization)
+
+**Note:** 
+- **Quantization requires GPU** - it will NOT work on CPU-only Spaces
+- **For CPU-only Spaces**: Use Option 1 (pretrained model) - the app automatically detects CPU and loads without quantization
+- The app will automatically use float32 on CPU for compatibility
 
 ### 4. Using the Model Programmatically
 

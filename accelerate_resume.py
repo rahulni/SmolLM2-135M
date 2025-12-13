@@ -79,7 +79,34 @@ def main():
         if t % 10 == 0:
             accelerator.print(f"Extra step {t} | Loss: {loss.item():.4f}")
 
-    accelerator.print("Resume training complete.")
+    # Update global step
+    final_step = start_step + 50
+
+    # -----------------------------
+    # Save updated checkpoint
+    # -----------------------------
+    save_dir = "checkpoint_5000"
+    model_to_save = accelerator.unwrap_model(model)
+    
+    # Convert to FP16 before saving to reduce checkpoint size (~50% reduction)
+    if device.type == "cuda":
+        model_to_save = model_to_save.half()
+        accelerator.print("Saving model in FP16 format (reduces size by ~50%)")
+    else:
+        accelerator.print("Saving model in FP32 format (CPU)")
+    
+    model_to_save.save_pretrained(save_dir)
+
+    if accelerator.is_main_process:
+        torch.save(
+            {
+                "step": final_step,
+                "optimizer": optimizer.state_dict(),
+            },
+            f"{save_dir}/optim.pt",
+        )
+
+    accelerator.print(f"Resume training complete. Checkpoint saved at step {final_step}.")
 
 
 if __name__ == "__main__":
