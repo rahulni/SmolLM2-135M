@@ -392,7 +392,7 @@ Default training hyperparameters:
 - **Batch Size:** 1 (per device, scales with Accelerate)
 - **Mixed Precision:** Enabled (bfloat16/float16 on CUDA)
 
-### Expected Training Output
+### Training Output: logs
 
 When running `accelerate_train.py`, you should see output similar to:
 
@@ -429,7 +429,7 @@ Training complete. Checkpoint saved.
 - The model is trained on 1,332 chunks of 256 tokens each from Coriolanus
 - Checkpoint is saved to `checkpoint_5000/` directory
 
-### Resuming Training
+### Resuming Training: logs
 
 To resume training from a checkpoint:
 
@@ -437,7 +437,7 @@ To resume training from a checkpoint:
 accelerate launch accelerate_resume.py
 ```
 
-Expected output:
+output:
 
 ```
 Resuming from step 5000
@@ -533,4 +533,5 @@ For questions or issues, please open an issue on the repository.
 ---
 
 **Note:** This is a training and inference framework. The model weights are trained from scratch or loaded from checkpoints. Make sure you have appropriate data and compute resources for training.
+
 
