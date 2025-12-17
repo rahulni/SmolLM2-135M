@@ -408,17 +408,18 @@ Model Parameters:
 
 Loaded 1332 training chunks.
 
-Step 0 | Loss 10.8755
-Step 500 | Loss 4.8903
-Step 1000 | Loss 5.9240
-Step 1500 | Loss 5.1603
-Step 2000 | Loss 4.4749
-Step 2500 | Loss 4.6673
-Step 3000 | Loss 4.0769
-Step 3500 | Loss 4.8665
-Step 4000 | Loss 4.4102
-Step 4500 | Loss 3.5130
+Step 0 | Loss 10.8222
+Step 500 | Loss 4.7882
+Step 1000 | Loss 5.9447
+Step 1500 | Loss 5.2691
+Step 2000 | Loss 4.5327
+Step 2500 | Loss 4.7587
+Step 3000 | Loss 4.1970
+Step 3500 | Loss 5.0133
+Step 4000 | Loss 4.4884
+Step 4500 | Loss 3.5572
 
+Saving model in FP16 format (reduces size by ~50%)
 Training complete. Checkpoint saved.
 ```
 
@@ -440,12 +441,13 @@ Expected output:
 
 ```
 Resuming from step 5000
-Extra step 0 | Loss: 18.6302
-Extra step 10 | Loss: 11.6444
-Extra step 20 | Loss: 10.9953
-Extra step 30 | Loss: 11.1277
-Extra step 40 | Loss: 11.2197
-Resume training complete.
+Extra step 0 | Loss: 15.6154
+Extra step 10 | Loss: 11.2768
+Extra step 20 | Loss: 10.9538
+Extra step 30 | Loss: 11.6046
+Extra step 40 | Loss: 11.2504
+Saving model in FP16 format (reduces size by ~50%)
+Resume training complete. Checkpoint saved at step 5050.
 ```
 
 **Note:** When resuming, the loss may initially spike (as shown above) because the resume script uses synthetic data for demonstration. In production, you would load your actual training dataset.
